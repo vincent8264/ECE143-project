@@ -11,6 +11,8 @@ def CosineSimilarity(s1, s2):
     Returns:
     - np.ndarray: A 1D array of similarity scores. shape: (n,)
     """
+    assert isinstance(s1, np.ndarray) and isinstance(s2, np.ndarray)
+    assert s1.shape[1] == s2.shape[0]
 
     numer = np.dot(s1, s2)
     denom = np.linalg.norm(s1, axis=1) * np.linalg.norm(s2)

@@ -66,6 +66,8 @@ class Recommender:
         # 2: get the input song's vector
         for artists, track_name in songs:
             track_id = self.get_track_id(artists, track_name)
+            if track_id is None:
+                continue
             track_i = self.df.index[self.df["track_id"] == track_id][0]
             target_indices.append(track_i)
             target_vecs.append(feature_matrix[track_i])
@@ -96,7 +98,7 @@ class Recommender:
         """
         Return track_id for a given (artist, track_name) pair.
         Includes safety checks for:
-          - no match
+          - no match (return None)
         """
         assert isinstance(artists, str) and isinstance(track_name, str)
 
@@ -104,7 +106,8 @@ class Recommender:
                           (self.df["track_name"] == track_name)]
 
         if len(matches) == 0:
-            raise ValueError(f"No track found for artist='{artists}', track='{track_name}'")
+            print(f"No track found for artist='{artists}', track='{track_name}'")
+            return None
 
         return matches["track_id"].iloc[0]
 

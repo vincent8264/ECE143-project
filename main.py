@@ -1,7 +1,7 @@
 import pandas as pd
 from source.recommender import Recommender
 
-def get_user_songs():
+def get_user_songs(recommender):
     """
     Prompt the user to enter multiple (artist, track_name) pairs.
     User types blank lines to finish input.
@@ -14,10 +14,13 @@ def get_user_songs():
         artist = input("Artist: ").strip()
         if artist == "":
             break
-
         track = input("Track name: ").strip()
         if track == "":
             break
+
+        if recommender.get_track_id(artist, track) is None:
+            print("")
+            continue
 
         songs.append((artist, track))
         print(f"Added: ({artist}, {track})\n")
@@ -29,10 +32,10 @@ def main():
     df = pd.read_csv("data/dataset.csv")
     recommender_sys = Recommender(df)
 
-    songs = get_user_songs()
+    songs = get_user_songs(recommender_sys)
 
     if not songs:
-        print("No songs entered. Exiting.")
+        print("No songs entered. Exiting. ")
         return
 
     print("\nInput songs:", songs)
@@ -41,7 +44,7 @@ def main():
     print("\nGenerating recommendations...\n")
     results = recommender_sys.recommend(songs, k=5)
 
-    print("Top Recommendations:\n")
+    print("Top Recommendations: \n")
     print(results)
 
 

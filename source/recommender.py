@@ -1,42 +1,17 @@
 import numpy as np
 import pandas as pd
 
+from dataset import Dataset
 from source.similarity import CosineSimilarity
 
 
 class Recommender:
     def __init__(self, df):
-        df = df.drop_duplicates(subset=["track_id"], keep="first")  # Having the same track id means the same song
-        df = df.drop_duplicates(subset=["artists", "track_name"],
-                                keep="first")  # Also remove songs the have same artist, track name, possibly duplicates too
-
-        df = df.reset_index(drop=True)
-        # print(len(df))
-        used_features = ["track_id", "artists", "track_name", "acousticness", "danceability", "energy", "key",
-                         "speechiness", "loudness", "instrumentalness", "tempo", "track_genre", "valence"]
-        df = df[used_features]
-
-        genre_cat = df["track_genre"].astype("category")
-        num_genres = len(genre_cat.cat.categories)
-
-        def one_hot(idx, num_classes):
-            v = np.zeros(num_classes, dtype=float)
-            v[idx] = 1.0
-            return v
-
-        df["track_genre"] = genre_cat.cat.codes.apply(
-            lambda i: one_hot(i, num_genres)
-        )
-
-        # Normalize
-        for col in ["danceability", "energy", "key", "speechiness", "instrumentalness", "tempo", "acousticness",
-                    "loudness", "valence"]:
-            df[col] = (df[col] - df[col].mean()) / df[col].std()
-        self.df = df
+        self.data = Dataset(df)
 
     def recommend(self, songs, k=5, artists_bonus=0.05, random=False, top_n=5, seed=0):
         """
-        Recommend k songs similar to a set of input songs.
+        Recommends k songs similar to a set of input songs.
 
         Parameters
         ----------
@@ -93,23 +68,6 @@ class Recommender:
             top_k_indices = np.argsort(similarity_scores)[::-1][:k]
 
         return [(row.artists, row.track_name) for row in self.df.iloc[top_k_indices].itertuples()]
-
-    def get_track_id(self, artists, track_name):
-        """
-        Return track_id for a given (artist, track_name) pair.
-        Includes safety checks for:
-          - no match (return None)
-        """
-        assert isinstance(artists, str) and isinstance(track_name, str)
-
-        matches = self.df[(self.df["artists"] == artists) &
-                          (self.df["track_name"] == track_name)]
-
-        if len(matches) == 0:
-            print(f"No track found for artist='{artists}', track='{track_name}'")
-            return None
-
-        return matches["track_id"].iloc[0]
 
     def FlattenVector(self, v):
         """

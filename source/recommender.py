@@ -1,83 +1,130 @@
 import numpy as np
-import pandas as pd
 
-from dataset import Dataset
-from source.similarity import CosineSimilarity
+from source.dataset import Dataset
 
 
 class Recommender:
     def __init__(self, df):
         self.data = Dataset(df)
 
-    def recommend(self, songs, k=5, artists_bonus=0.05, random=False, top_n=5, seed=0):
-        """
-        Recommends k songs similar to a set of input songs.
+    def recommend(self, songs=None, k=5,
+                  weights=None, alpha=0.5,
+                  random=False, top_n=5, seed=0):
+        """Recommends k songs similar to a set of input songs."""
+        if songs is None:
+            print("Recommending most popular songs: ")
+            return [(row.artists, row.track_name) for i, row in
+                    self.data.df.sort_values(by="popularity", ascending=False).head(k).iterrows()]
 
-        Parameters
-        ----------
-        songs : list of (artists, track_name)
-            Example: [("Artists 1", "Song 1"), ("Artists 2", "Song 2")]
-        k : int
-            Number of recommendations to return.
-
-        Returns
-        -------
-        pandas.DataFrame
-            Top-k recommended tracks.
-        """
         assert isinstance(songs, list)
+        track_ids = [self.data.get_track_id(artists, track_name) for artists, track_name in songs]
+        track_ids = [track_id for track_id in track_ids if track_id is not None]
+        if len(track_ids) == 0:
+            print("No songs matched in dataset. Recommending most popular songs: ")
+            return [(row.artists, row.track_name) for i, row in
+                    self.data.df.sort_values(by="popularity", ascending=False).head(k).iterrows()]
+
         assert all(len(song) == 2 for song in songs)
         assert isinstance(k, int) and k > 0
 
-        mask = ["danceability", "energy", "key", "speechiness", "instrumentalness", "tempo", "track_genre",
-                "acousticness", "loudness", "valence"]
+        if weights is None:
+            weights = {c: 1 for c in self.data.features}
+        else:
+            assert isinstance(weights, dict)
+            assert set(weights.keys()).issubset(self.data.features)
+            assert all(isinstance(weight, (int, float)) for weight in weights.values())
+            for feature in self.data.features:
+                weights.setdefault(feature, 0)
 
-        # 1. prepare feature matrix
-        # apply FlattenVector to all rows to create feature matrix
-        feature_matrix = np.stack(self.df[mask].apply(lambda row: self.FlattenVector(row), axis=1))
+        # 1. feature matrix for cosine similarity
+        x = self.data.df[self.data.numerical_features].to_numpy()
+        mu = x.mean(axis=0)
+        sd = x.std(axis=0)
+        sd[sd == 0] = 1
+        x = (x - mu) / sd
 
-        target_vecs = []
-        target_indices = []
-        # 2: get the input song's vector
-        for artists, track_name in songs:
-            track_id = self.get_track_id(artists, track_name)
-            if track_id is None:
-                continue
-            track_i = self.df.index[self.df["track_id"] == track_id][0]
-            target_indices.append(track_i)
-            target_vecs.append(feature_matrix[track_i])
+        # 2: input songs' matrix for cosine similarity
+        y_i = self.data.df.index.get_indexer(track_ids)
+        y = x[y_i]
 
-        # 3. compute similarity scores of the every song vs target
-        target_vec = np.mean(target_vecs, axis=0)
-        similarity_scores = CosineSimilarity(feature_matrix, target_vec)
+        # weights for cosine similarity
+        w = [weights[feature] for feature in self.data.numerical_features]
 
-        # feature "artists" is very hard to handle (one-hot could cause dimensional explode!), so I suggest just set as bonus one
-        input_artists = set(self.df.loc[target_indices, "artists"].values)
-        artists_match_mask = self.df["artists"].isin(input_artists).values
-        similarity_scores[artists_match_mask] *= 1 + artists_bonus
+        # 3. compute similarity scores
+        cosine_similarity = self.cosine_similarity(x, y, w)
+        # jaccard_similarity = self.jaccard_similarity(self.data.df, self.data.df.iloc[], weights)
+        # similarity = alpha * cosine_similarity + (1 - alpha) * jaccard_similarity
+
+        cosine_similarity = cosine_similarity.max(axis=1)
+
+        for i in y_i:
+            cosine_similarity[i] = -1  # Exclude the track itself
 
         # 4. get closest songs
-        for target_index in target_indices:
-            similarity_scores[target_index] = -1  # Exclude the track itself
         if random:
             np.random.seed(seed)
-            top_n_indices = np.argsort(similarity_scores)[::-1][:top_n]
-            top_k_indices = np.random.choice(top_n_indices, size=min(k, top_n), replace=False)
-
+            top_n_indices = np.argsort(cosine_similarity)[::-1][:top_n]
+            top_k_i = np.random.choice(top_n_indices, size=min(k, top_n), replace=False)
         else:
-            top_k_indices = np.argsort(similarity_scores)[::-1][:k]
+            top_k_i = np.argsort(cosine_similarity)[::-1][:k]
 
-        return [(row.artists, row.track_name) for row in self.df.iloc[top_k_indices].itertuples()]
+        return [(row.artists, row.track_name) for row in self.data.df.iloc[top_k_i].itertuples()]
 
-    def FlattenVector(self, v):
+    def cosine_similarity(self, x, y, w=None):
+        """Computes cosine similarity with optional per-feature weights."""
+        assert isinstance(x, np.ndarray) and isinstance(y, np.ndarray)
+        assert x.shape[1] == y.shape[1]
+
+        if w is not None:
+            assert isinstance(w, list) or isinstance(w, np.ndarray)
+            w = np.asarray(w)
+            assert w.shape[0] == x.shape[1]
+
+            w = np.sqrt(w)
+            x = x * w
+            y = y * w
+
+        numer = np.dot(x, y.T)
+        denom = np.linalg.norm(x, axis=1, keepdims=True) * np.linalg.norm(y, axis=1, keepdims=True)
+
+        return np.divide(numer, denom, out=np.zeros_like(numer, dtype=float), where=denom != 0)
+
+    def jaccard_similarity(self, x, y, weights):
+        single_cols = self.data.categorical_features
+        tuple_cols = self.data.multiclass_features
+
+        # Initialize similarity accumulator
+        sim_acc = np.zeros((x.shape[0], y.shape[0]), dtype=float)
+
+        for col in single_cols:
+            sim_acc += self.vectorized_single_match(x, y, col).astype(float)
+
+        # Tuple columns
+        for col in tuple_cols:
+            sim_acc += self.vectorized_tuple_match(x, y, col).astype(float)
+
+        return sim_acc / (len(tuple_cols) + len(single_cols))
+
+    def vectorized_tuple_match(self, df1, df2, col):
         """
-        Flatten a mixed vector where some elements may be arrays/lists.
-        Returns a 1D numpy array of floats.
+        Returns a boolean matrix: df1 rows vs df2 rows
+        True if tuple column has at least one common element
         """
-        flat = []
-        for x in v:
-            if isinstance(x, (list, np.ndarray)):
-                flat.extend(x)
-            else:
-                flat.append(x)
-        return np.array(flat, dtype=float)
+        # Convert tuples to sets
+        sets1 = df1[col].apply(set).values
+        sets2 = df2[col].apply(set).values
+
+        n1, n2 = len(sets1), len(sets2)
+
+        # Create match matrix
+        match_matrix = np.zeros((n1, n2), dtype=bool)
+        for i in range(n1):
+            # Broadcast intersection check
+            match_matrix[i, :] = [bool(sets1[i] & s2) for s2 in sets2]
+        return match_matrix
+
+    def vectorized_single_match(self, df1, df2, col):
+        """
+        Returns a boolean matrix: True if values equal
+        """
+        return df1[col].values[:, None] == df2[col].values[None, :]

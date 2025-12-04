@@ -52,9 +52,6 @@ class Dataset:
 
         return df
 
-    def get_string(self, track_id):
-        return f"{self.df.loc[track_id]['track_name']} - {", ".join(self.df.loc[track_id, "artists"])}"
-
     def get_track_id(self, artists, track_name):
         """
         Returns track_id for a given (artist, track_name) pair.

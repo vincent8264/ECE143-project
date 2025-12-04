@@ -20,4 +20,4 @@ def get_unique_artists(dataset):
 
 def get_unique_genres(dataset):
     assert isinstance(dataset, Dataset)
-    return set(artist for tup in dataset.df["track_genre"] for genre in tup)
+    return set(genre for tup in dataset.df["track_genre"] for genre in tup)

@@ -60,8 +60,12 @@ class Recommender:
             assert isinstance(weights, dict)
             assert set(weights.keys()).issubset(self.data.features)
             assert all(isinstance(weight, (int, float)) for weight in weights.values())
-            for feature in self.data.features:
+            for feature in self.data.categorical_features:
                 weights.setdefault(feature, 0)
+            for feature in self.data.multiclass_features:
+                weights.setdefault(feature, 0)
+            for feature in self.data.numerical_features:
+                weights.setdefault(feature, 1)
 
         # 1. feature matrix for cosine similarity
         x = df[self.data.numerical_features].to_numpy()

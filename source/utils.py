@@ -3,7 +3,7 @@ from source.dataset import Dataset
 
 def print_songs(songs):
     assert isinstance(songs, list) and all(len(song) == 2 for song in songs)
-    assert all((isinstance(artists, str) or isinstance(artists, list)) and isinstance(track_name, str)
+    assert all((isinstance(artists, str) or isinstance(artists, tuple)) and isinstance(track_name, str)
                for artists, track_name in songs)
 
     for artists, track_name in songs:

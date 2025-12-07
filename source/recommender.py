@@ -7,9 +7,9 @@ class Recommender:
     def __init__(self, df):
         self.data = Dataset(df)
 
-    def recommend(self, songs=None, k=5, filters=None,
-                  weights=None, alpha=0.5,
-                  random=False, top_n=5, seed=0):
+    def recommend(self, songs: list[tuple[str]] = None, k: int = 5, filters: dict[str, object] = None,
+                  weights: dict[str, float] = None, alpha: float = 0.5,
+                  random: bool = False, top_n: int = 5, seed: int = 0):
         """Recommends k songs similar to a set of input songs."""
         df = self.data.df
         if filters is not None:

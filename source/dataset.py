@@ -37,7 +37,8 @@ class Dataset:
 
         df['artists'] = df['artists'].apply(lambda x: tuple(sorted(x.split(';'))))
 
-        # some songs have the same artists and track_name. keep the first one for now
+        # some songs have the same artists and track_name. sort them and keep the first one for now
+        df = df.sort_values(by=["popularity"], ascending=False)
         df = df.drop_duplicates(subset=["artists", "track_name"], keep="first")
 
         for feature in self.categorical_features:

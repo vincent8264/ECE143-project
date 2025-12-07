@@ -9,7 +9,7 @@ class Recommender:
 
     def recommend(self, songs: list[tuple[str]] = None, k: int = 5, filters: dict[str, object] = None,
                   weights: dict[str, float] = None, alpha: float = 0.5,
-                  random: bool = False, top_n: int = 5, seed: int = 0):
+                  random: bool = False, top_n: int = 5, seed: int = None):
         """Recommends k songs similar to a set of input songs."""
         df = self.data.df
         if filters is not None:
@@ -67,6 +67,11 @@ class Recommender:
             for feature in self.data.numerical_features:
                 weights.setdefault(feature, 1)
 
+        assert isinstance(alpha, float) and 0 <= alpha <= 1
+        assert isinstance(random, bool)
+        assert isinstance(top_n, int) and top_n >= k
+        assert seed is None or isinstance(seed, int)
+
         # 1. feature matrix for cosine similarity
         x = df[self.data.numerical_features].to_numpy()
         mu = x.mean(axis=0)
@@ -93,12 +98,13 @@ class Recommender:
             similarity[i] = -1  # exclude the given tracks
 
         # 4. get closest songs
+        top_n_i = np.argsort(similarity)[::-1][:top_n]
         if random:
-            np.random.seed(seed)
-            top_n_i = np.argsort(similarity)[::-1][:top_n]
-            top_k_i = np.random.choice(top_n_i, size=min(k, top_n), replace=False)
+            if seed is not None:
+                np.random.seed(seed)
+            top_k_i = np.random.choice(top_n_i, size=k, replace=False)
         else:
-            top_k_i = np.argsort(similarity)[::-1][:k]
+            top_k_i = top_n_i[:k]
 
         return [(row.artists, row.track_name) for row in df.iloc[top_k_i].itertuples()]
 

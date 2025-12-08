@@ -2,7 +2,8 @@
 ## Jiaguan Pan, Justin Nguyen, Tien-Ning Lee, Vincent Kao, Yu-Shu Chen
 
 This project implements a simple content-based music recommender system using Spotify-style audio features. 
-Given one or more `(artist, track_name)` pairs, the system computes similarity scores between tracks and returns the top recommended songs.
+Given one or more `(artist, track_name)` pairs, the system computes similarity scores between tracks and returns the top recommended songs. 
+Presentation video: https://youtu.be/ASSBQZ8wTjs
 
 ---
 
@@ -40,6 +41,8 @@ Contains the `Recommender` class, including:
 ---
 
 ## ▶️ How to Run
+
+Here is an example of how to run the recommendation system with input songs (more examples can be found in `recommendation.ipynb`):
 
 ### **1. Load your dataset**
 

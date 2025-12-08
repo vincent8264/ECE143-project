@@ -16,7 +16,7 @@ project_root/
 │
 ├── source/
 │   ├── dataset.py
-│   └── recommender.py             # Main recommender class
+│   ├── recommender.py             # Main recommender class
 │   └── utils.py                   # Useful functions for displaying outputs and retrieving data
 │
 ├── recommendation.ipynb           # Examples of running the recommendation system with different inputs

@@ -12,15 +12,15 @@ Given one or more `(artist, track_name)` pairs, the system computes similarity s
 project_root/
 │
 ├── data/
-│   └── dataset.csv                 # Spotify dataset
+│   └── dataset.csv                 # Kaggle Spotify dataset
 │
 ├── source/
-│   ├── __init__.py
+│   ├── dataset.py
 │   └── recommender.py             # Main recommender class
-│   └── similarity.py              # Similarity functions for the recommender
+│   └── utils.py                   # Useful functions for displaying outputs and retrieving data
 │
-├── notebooks/
-│   └── experiments.ipynb          # Optional: your experimentation
+├── recommendation.ipynb           # Examples of running the recommendation system with different inputs
+├── visualization.ipynb            # Jupyter Notebook generating figures
 │
 ├── main.py                        # main.py for running in command line
 └── README.md                      # This file
@@ -31,6 +31,7 @@ project_root/
 Contains the `Recommender` class, including:
 
 * feature extraction
+* dataset filtering
 * similarity computation
 * input validation
 * multi-song recommendation
@@ -45,6 +46,7 @@ Contains the `Recommender` class, including:
 ```python
 import pandas as pd
 from source.recommender import Recommender
+from source.utils import print_songs
 
 df = pd.read_csv("data/tracks.csv")
 recommender_sys = Recommender(df)
@@ -60,14 +62,14 @@ songs = [
     ("Dr. Dre;Snoop Dogg", "Still D.R.E.")
 ]
 
-print(songs)
+print_songs(songs)
 ```
 
 ### **3. Get recommendations**
 
 ```python
 songs = recommender_sys.recommend(songs)
-print(songs)
+print_songs(songs)
 ```
 
 This returns a list of the recommended tracks.
@@ -93,7 +95,6 @@ pip install numpy pandas
 
 ## 📝 Notes
 
-* The recommender uses cosine similarity between flattened feature vectors. 
-* Optional: artist matching provides a small bonus in similarity scoring. 
+* The recommender uses cosine similarity and Jaccard similarity between feature vectors to rank songs. 
 * Multiple input songs are averaged into a single “preference vector.”
 * Recommendations can be randomized by selecting from the top-N similar tracks. 
